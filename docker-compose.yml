@@ -1,0 +1,68 @@
+services:
+  # kafka:
+  kafka-broker:
+    image: confluentinc/cp-kafka:7.7.0
+    hostname: kafka-broker
+    container_name: kafka-broker
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-broker:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-broker:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka-broker:29092,CONTROLLER://kafka-broker:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    networks:
+      - distributed-network
+
+  spark-master:
+    image: bitnami/spark:latest
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "8080:8080"  # Spark Master web UI
+      - "7077:7077"  # Spark Master port
+    networks:
+      - distributed-network
+    volumes:
+      - ./pyspark:/opt/spark/python  # Mount PySpark directory for custom scripts
+
+  spark-worker1:
+    image: bitnami/spark:latest
+    container_name: spark-worker1
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    depends_on:
+      - spark-master
+    networks:
+      - distributed-network
+
+  spark-worker2:
+    image: bitnami/spark:latest
+    container_name: spark-worker2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    depends_on:
+      - spark-master
+    networks:
+      - distributed-network
+
