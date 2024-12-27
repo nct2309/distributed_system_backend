@@ -15,7 +15,7 @@ router = APIRouter(tags=["water_quality"])
 # Read only from warehouse
 
 # by id
-@router.get("/{id}", response_model=WaterQualityRead)
+@router.get("/water_quality/{id}", response_model=WaterQualityRead)
 async def read_water_quality_by_id(id: int, db: AsyncSession = Depends(async_get_db)):
     water_quality = await crud_water_quality.get(db=db, schema_to_select=WaterQualityRead, id=id)
     if not water_quality:
@@ -43,3 +43,20 @@ async def read_water_quality_by_place(
     offset = compute_offset(page, items_per_page)
     water_qualities = await crud_water_quality.get_multi(db=db, schema_to_select=WaterQualityRead, place__in=[place], offset=offset, sort_columns='time', sort_orders='asc')
     return paginated_response(crud_data=water_qualities, page=page, items_per_page=items_per_page)
+
+# get the list of mapping from place to location
+@router.get("/location", response_model=Any)
+# get distinct place and its associated location
+async def read_water_quality_locations(db: AsyncSession = Depends(async_get_db)):
+    res = await crud_water_quality.get_multi(db=db, schema_to_select=WaterQualityRead, columns=['place'], distinct=True)
+    
+    data = [{"place": d.get('place'), "location": d.get('location')} for d in res.get('data')]
+    
+    # take out the unique place (convert to float to remove the duplicate)
+    unique_place = set([float(d.get('place')) for d in data])
+    data = [{"place": int(p), "location": [d.get('location') for d in data if float(d.get('place')) == p][0]} for p in unique_place]
+    # sort in float the place
+    data = sorted(data, key=lambda x: float(x.get('place')))
+    
+    return data
+    
