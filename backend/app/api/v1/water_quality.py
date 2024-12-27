@@ -92,11 +92,20 @@ def prepare_observation(water_quality_data: Dict[str, Any]) -> np.ndarray:
                    dtype=np.float32)
     return obs
 
-@router.post("/predict/{place}", response_model=Any)
+@router.get("/predict/{place}", response_model=Any)
 async def predict_water_quality(
-    place: int = 24,
+    place: int = 24, 
     db: AsyncSession = Depends(async_get_db)
 ):
+    """_summary_
+
+    Args:
+        place (int, optional): _description_. Defaults to 24.
+        db (AsyncSession, optional): _description_. Defaults to Depends(async_get_db).
+
+    Returns:
+        _type_: _description_
+    """
     try:
         # Convert place to string format as per your existing code
         place = str(float(place))
@@ -145,10 +154,12 @@ async def predict_water_quality(
         
         return {
             'place': place,
-            'predicted_wqis': predicted_wqis,
+            # 'predicted_wqis': predicted_wqis,
             'history': training_data,
             # date list for prediction (in the last 20% of data)
-            'dates': [d.get('time') for d in data[int(len(data)*0.8):]],
+            # 'dates': [d.get('time') for d in data[int(len(data)*0.8):]],
+            # join predicted wqis with the date
+            "predicted": [{"date": d.get('time'), "predicted_wqi": wqi} for d, wqi in zip(data[int(len(data)*0.8):], predicted_wqis)]
         }
         
     except Exception as e:
